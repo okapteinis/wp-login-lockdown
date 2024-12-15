@@ -10,7 +10,7 @@ if (!defined('WPINC')) {
     die;
 }
 
-$loginlockdown_db_version = "1.1";
+$loginlockdown_db_version = "1.1.2";
 
 if (!defined('WP_PLUGIN_DIR')) {
     define('WP_PLUGIN_DIR', ABSPATH . 'wp-content/plugins');
