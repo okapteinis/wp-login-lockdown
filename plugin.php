@@ -78,7 +78,7 @@ register_activation_hook(__FILE__, 'loginlockdown_install');
  * @return string
  */
 function loginlockdown_get_remote_ip() {
-	$ip = isset( loginlockdown_get_remote_ip() ) ? loginlockdown_get_remote_ip() : '0.0.0.0';
+	$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? $_SERVER['REMOTE_ADDR'] : '0.0.0.0';
 	// Validate and sanitize the IP address
 	$ip = filter_var( $ip, FILTER_VALIDATE_IP );
 	return $ip ? $ip : '0.0.0.0';
