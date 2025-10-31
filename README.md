@@ -4,10 +4,10 @@
 - Developer: Timothée Moulin
 - Tags: security, login, login form
 - License: GNU Version 2
-- Requires at least: 3.6
-- Tested up to: 5.4.1
-- Stable Tag: 2.0.0
-- PHP version: > 5.6, tested up to 7.4
+- Requires at least: 5.0
+- Tested up to: 6.7
+- Stable Tag: 2.1.0
+- PHP version: >= 7.4, tested up to 8.4
 
 Limits the number of login attempts from a given IP range within a certain time period.
 
@@ -29,6 +29,18 @@ via the Options panel. Administrators can release locked out IP ranges manually 
 Enjoy.
 
 ## Change Log
+
+- ver. 2.1.0 31-Oct-2025
+    - **PHP 8.4 compatibility and security improvements**
+    - Fixed critical SQL injection vulnerabilities in INSERT queries
+    - Fixed operator precedence logic error in IPv6 validation
+    - Replaced all loose comparisons (==, !=) with strict comparisons (===, !==)
+    - Added IP address validation and sanitization
+    - Sanitized $_SERVER access for HTTP_HOST and REQUEST_URI
+    - Added HTTPS detection with is_ssl()
+    - Minimum PHP version updated from 5.6 to 7.4
+    - Tested with WordPress 6.7 and PHP 8.4
+    - Contributor: Ojārs Kapteinis
 
 - ver. 2.0.0 14-May-2020
     - code refactor and follow some WP CS convention
