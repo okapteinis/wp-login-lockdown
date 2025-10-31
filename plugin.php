@@ -321,8 +321,8 @@ function loginlockdown_admin_page() {
         <h2><?php _e( 'Login LockDown Options', 'loginlockdown' ) ?></h2>
 
         <h2 class="nav-tab-wrapper">
-            <a href="?page=loginlockdown.php&tab=settings" class="nav-tab <?php echo $active_tab === 'settings' ? 'nav-tab-active' : ''; ?>"><?php _e( 'Settings', 'loginlockdown' ) ?></a>
-            <a href="?page=loginlockdown.php&tab=activity" class="nav-tab <?php echo $active_tab === 'activity' ? 'nav-tab-active' : ''; ?>"><?php _e( 'Activity', 'loginlockdown' ) ?> (<?php echo count( $dalist ); ?>)</a>
+            <a href="?page=<?php echo esc_attr( basename( __FILE__ ) ); ?>&tab=settings" class="nav-tab <?php echo $active_tab === 'settings' ? 'nav-tab-active' : ''; ?>"><?php _e( 'Settings', 'loginlockdown' ) ?></a>
+            <a href="?page=<?php echo esc_attr( basename( __FILE__ ) ); ?>&tab=activity" class="nav-tab <?php echo $active_tab === 'activity' ? 'nav-tab-active' : ''; ?>"><?php _e( 'Activity', 'loginlockdown' ) ?> (<?php echo count( $dalist ); ?>)</a>
         </h2>
 		<?php if ( $active_tab === 'settings' ) { ?>
             <form method="post" action="<?php echo esc_attr( $_SERVER["REQUEST_URI"] ); ?>">
@@ -576,7 +576,7 @@ register_activation_hook( __FILE__, 'loginlockdown_multisite_activate' );
 function loginlockdown_multisite_newsite( $blog_id, $user_id, $domain, $path, $site_id, $meta ) {
 	global $wpdb;
 
-	if ( is_plugin_active_for_network( 'loginlockdown/loginlockdown.php' ) ) {
+	if ( is_plugin_active_for_network( 'wp-login-lockdown/plugin.php' ) ) {
 		$old_blog = $wpdb->blogid;
 		switch_to_blog( $blog_id );
 		loginlockdown_install();
