@@ -504,7 +504,7 @@ if ( ! function_exists( 'wp_authenticate' ) ) :
 		$username = sanitize_user( $username );
 		$password = trim( $password );
 
-		if ( "" !== loginlockdown_is_ip_locked() ) {
+		if ( loginlockdown_is_ip_locked() ) {
 			return new WP_Error( 'incorrect_password', __( "<strong>ERROR</strong>: We're sorry, but this IP range has been blocked due to too many recent failed login attempts.<br /><br />Please try again later.", 'loginlockdown' ) );
 		}
 
