@@ -97,11 +97,14 @@ function loginlockdown_count_fails( $username = "" ) {
 	$table_name = $wpdb->prefix . "login_fails";
 	$subnet     = loginlockdown_calculate_subnet( loginlockdown_get_remote_ip() );
 
-	$numFailsquery = "SELECT COUNT(login_attempt_ID) FROM $table_name " .
-	                 "WHERE login_attempt_date + INTERVAL " .
-	                 $loginlockdownOptions['retries_within'] . " MINUTE > now() AND " .
-	                 "login_attempt_IP LIKE '%s'";
-	$numFailsquery = $wpdb->prepare( $numFailsquery, $subnet[1] . "%" );
+	$retries_within = intval( $loginlockdownOptions['retries_within'] );
+	$numFailsquery = $wpdb->prepare(
+		"SELECT COUNT(login_attempt_ID) FROM $table_name " .
+		"WHERE login_attempt_date + INTERVAL %d MINUTE > now() AND " .
+		"login_attempt_IP LIKE %s",
+		$retries_within,
+		$subnet[1] . "%"
+	);
 
 	$numFails = $wpdb->get_var( $numFailsquery );
 
