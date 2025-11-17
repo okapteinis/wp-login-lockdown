@@ -361,6 +361,10 @@ function loginlockdown_admin_page() {
 			$active_tab = 'settings';
 		}
 
+		// Construct safe admin URL for form actions
+		$page = isset( $_GET['page'] ) ? sanitize_key( $_GET['page'] ) : '';
+		$current_url = admin_url( 'options-general.php?page=' . urlencode( $page ) . '&tab=' . urlencode( $active_tab ) );
+
 		?>
         <h2><?php _e( 'Login LockDown Options', 'loginlockdown' ) ?></h2>
 
@@ -369,7 +373,7 @@ function loginlockdown_admin_page() {
             <a href="?page=<?php echo esc_attr( basename( __FILE__ ) ); ?>&tab=activity" class="nav-tab <?php echo $active_tab === 'activity' ? 'nav-tab-active' : ''; ?>"><?php _e( 'Activity', 'loginlockdown' ) ?> (<?php echo count( $dalist ); ?>)</a>
         </h2>
 		<?php if ( $active_tab === 'settings' ) { ?>
-            <form method="post" action="<?php echo esc_attr( $_SERVER["REQUEST_URI"] ); ?>">
+            <form method="post" action="<?php echo esc_url( $current_url ); ?>">
 				<?php
 				if ( function_exists( 'wp_nonce_field' ) ) {
 					wp_nonce_field( 'login-lockdown_update-options' );
@@ -416,7 +420,7 @@ function loginlockdown_admin_page() {
                     <input type="submit" class="button button-primary" name="update_loginlockdownSettings" value="<?php _e( 'Update Settings', 'loginlockdown' ) ?>"/></div>
             </form>
 		<?php } else { ?>
-            <form method="post" action="<?php echo esc_attr( $_SERVER["REQUEST_URI"] ); ?>">
+            <form method="post" action="<?php echo esc_url( $current_url ); ?>">
 				<?php
 				if ( function_exists( 'wp_nonce_field' ) ) {
 					wp_nonce_field( 'login-lockdown_release-lockdowns' );
