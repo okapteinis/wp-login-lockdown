@@ -2,7 +2,7 @@
 /*
 Plugin Name: Login LockDown
 Plugin URI: https://github.com/okapteinis/wp-login-lockdown
-Version: v2.1.0
+Version: 2.2.0
 Author: Michael VanDeMar
 Contributors: timotheemoulin, okapteinis
 License: GPLv2
@@ -35,7 +35,7 @@ function loginlockdown_install() {
 
 	$table_name = $wpdb->prefix . "login_fails";
 
-	if ( $wpdb->get_var( "SHOW TABLES LIKE '$table_name'" ) !== $table_name ) {
+	if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table_name ) ) !== $table_name ) {
 		$sql = "CREATE TABLE " . $table_name . " (
 			`login_attempt_ID` bigint(20) NOT NULL AUTO_INCREMENT,
 			`user_id` bigint(20) NOT NULL,
@@ -50,7 +50,7 @@ function loginlockdown_install() {
 
 	$table_name = $wpdb->prefix . "lockdowns";
 
-	if ( $wpdb->get_var( "SHOW TABLES LIKE '$table_name'" ) !== $table_name ) {
+	if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table_name ) ) !== $table_name ) {
 		$sql = "CREATE TABLE " . $table_name . " (
 			`lockdown_ID` bigint(20) NOT NULL AUTO_INCREMENT,
 			`user_id` bigint(20) NOT NULL,
@@ -97,11 +97,15 @@ function loginlockdown_count_fails( $username = "" ) {
 	$table_name = $wpdb->prefix . "login_fails";
 	$subnet     = loginlockdown_calculate_subnet( loginlockdown_get_remote_ip() );
 
-	$numFailsquery = "SELECT COUNT(login_attempt_ID) FROM $table_name " .
-	                 "WHERE login_attempt_date + INTERVAL " .
-	                 $loginlockdownOptions['retries_within'] . " MINUTE > now() AND " .
-	                 "login_attempt_IP LIKE '%s'";
-	$numFailsquery = $wpdb->prepare( $numFailsquery, $subnet[1] . "%" );
+	$retries_within = intval( $loginlockdownOptions['retries_within'] );
+	$table_name_safe = esc_sql( $table_name );
+	$numFailsquery = $wpdb->prepare(
+		"SELECT COUNT(login_attempt_ID) FROM `$table_name_safe` " .
+		"WHERE login_attempt_date + INTERVAL %d MINUTE > now() AND " .
+		"login_attempt_IP LIKE %s",
+		$retries_within,
+		$subnet[1] . "%"
+	);
 
 	$numFails = $wpdb->get_var( $numFailsquery );
 
@@ -169,10 +173,13 @@ function loginlockdown_is_ip_locked() {
 	$table_name = $wpdb->prefix . "lockdowns";
 	$subnet     = loginlockdown_calculate_subnet( loginlockdown_get_remote_ip() );
 
-	$stillLockedquery = "SELECT user_id FROM $table_name " .
-	                    "WHERE release_date > now() AND " .
-	                    "lockdown_IP LIKE %s";
-	$stillLockedquery = $wpdb->prepare( $stillLockedquery, $subnet[1] . "%" );
+	$table_name_safe = esc_sql( $table_name );
+	$stillLockedquery = $wpdb->prepare(
+		"SELECT user_id FROM `$table_name_safe` " .
+		"WHERE release_date > now() AND " .
+		"lockdown_IP LIKE %s",
+		$subnet[1] . "%"
+	);
 
 	$stillLocked = $wpdb->get_var( $stillLockedquery );
 
@@ -186,10 +193,11 @@ function loginlockdown_is_ip_locked() {
 function loginlockdown_list_locked_ips() {
 	global $wpdb;
 	$table_name = $wpdb->prefix . "lockdowns";
+	$table_name_safe = esc_sql( $table_name );
 
 	$listLocked = $wpdb->get_results(
 		"SELECT lockdown_ID, floor((UNIX_TIMESTAMP(release_date)-UNIX_TIMESTAMP(now()))/60) AS minutes_left, " .
-		"lockdown_IP FROM $table_name WHERE release_date > now()",
+		"lockdown_IP FROM `$table_name_safe` WHERE release_date > now()",
 		ARRAY_A
 	);
 
@@ -229,12 +237,23 @@ function loginlockdown_get_options() {
  */
 function loginlockdown_calculate_subnet( $ip ) {
 	$subnet[0] = $ip;
+	$subnet[1] = $ip; // Default fallback
+
 	if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) !== false ) {
-		$ip = loginlockdown_expand_ipv6( $ip );
-		preg_match( "/^([0-9abcdef]{1,4}:){4}/", $ip, $matches );
-		$subnet[0] = $ip;
-		$subnet[1] = $matches[0];
-	} else {
+		$expanded = loginlockdown_expand_ipv6( $ip );
+		if ( $expanded !== false ) {
+			$subnet[0] = $expanded;
+
+			// Match first 4 groups of IPv6 address (64-bit subnet)
+			if ( preg_match( "/^([0-9abcdef]{1,4}:){4}/", $expanded, $matches ) ) {
+				$subnet[1] = $matches[0];
+			} else {
+				// Fallback: use full IP if pattern doesn't match
+				$subnet[1] = $expanded;
+			}
+		}
+	} else if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) !== false ) {
+		// IPv4: use first 3 octets as subnet
 		$subnet[1] = substr( $ip, 0, strrpos( $ip, "." ) + 1 );
 	}
 
@@ -244,15 +263,27 @@ function loginlockdown_calculate_subnet( $ip ) {
 /**
  * Get the IPV6 format.
  *
- * @param $ip
+ * @param string $ip IPv6 address to expand
  *
- * @return false|string
+ * @return false|string Expanded IPv6 address or false on error
  */
 function loginlockdown_expand_ipv6( $ip ) {
-	$hex = unpack( "H*hex", inet_pton( $ip ) );
-	$ip  = substr( preg_replace( "/([A-f0-9]{4})/", "$1:", $hex['hex'] ), 0, - 1 );
+	// Suppress errors and check if inet_pton succeeds
+	$binary = @inet_pton( $ip );
 
-	return $ip;
+	if ( $binary === false ) {
+		return false;  // Invalid IPv6 address
+	}
+
+	$hex = unpack( "H*hex", $binary );
+
+	if ( ! isset( $hex['hex'] ) ) {
+		return false;
+	}
+
+	$expanded = substr( preg_replace( "/([A-f0-9]{4})/", "$1:", $hex['hex'] ), 0, -1 );
+
+	return $expanded;
 }
 
 /**
@@ -268,14 +299,20 @@ function loginlockdown_admin_page() {
 		//wp_nonce check
 		check_admin_referer( 'login-lockdown_update-options' );
 
+		// Validate and sanitize numeric settings with reasonable limits
 		if ( isset( $_POST['ll_max_login_retries'] ) ) {
-			$loginLockDownOptions['max_login_retries'] = $_POST['ll_max_login_retries'];
+			$value = intval( $_POST['ll_max_login_retries'] );
+			$loginLockDownOptions['max_login_retries'] = max( 1, min( 100, $value ) );
 		}
 		if ( isset( $_POST['ll_retries_within'] ) ) {
-			$loginLockDownOptions['retries_within'] = $_POST['ll_retries_within'];
+			$value = intval( $_POST['ll_retries_within'] );
+			// Maximum 24 hours (1440 minutes)
+			$loginLockDownOptions['retries_within'] = max( 1, min( 1440, $value ) );
 		}
 		if ( isset( $_POST['ll_lockout_length'] ) ) {
-			$loginLockDownOptions['lockout_length'] = $_POST['ll_lockout_length'];
+			$value = intval( $_POST['ll_lockout_length'] );
+			// Maximum 1 week (10080 minutes)
+			$loginLockDownOptions['lockout_length'] = max( 1, min( 10080, $value ) );
 		}
 		if ( isset( $_POST['ll_lockout_invalid_usernames'] ) ) {
 			$loginLockDownOptions['lockout_invalid_usernames'] = $_POST['ll_lockout_invalid_usernames'];
@@ -298,11 +335,13 @@ function loginlockdown_admin_page() {
 
 		if ( isset( $_POST['releaseme'] ) ) {
 			$released = $_POST['releaseme'];
+			$table_name_safe = esc_sql( $table_name );
 			foreach ( $released as $release_id ) {
-				$releasequery = "UPDATE $table_name SET release_date = now() " .
-				                "WHERE lockdown_ID = '%d'";
-				$releasequery = $wpdb->prepare( $releasequery, $release_id );
-				$results      = $wpdb->query( $releasequery );
+				$releasequery = $wpdb->prepare(
+					"UPDATE `$table_name_safe` SET release_date = now() WHERE lockdown_ID = %d",
+					intval( $release_id )
+				);
+				$results = $wpdb->query( $releasequery );
 			}
 		}
 		update_option( "loginlockdown_admin_options", $loginLockDownOptions );
@@ -315,7 +354,16 @@ function loginlockdown_admin_page() {
     <div class="wrap">
 		<?php
 
-		$active_tab = isset( $_GET['tab'] ) ? $_GET['tab'] : 'settings';
+		// Sanitize and validate tab parameter
+		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'settings';
+		$allowed_tabs = array( 'settings', 'activity' );
+		if ( ! in_array( $active_tab, $allowed_tabs, true ) ) {
+			$active_tab = 'settings';
+		}
+
+		// Construct safe admin URL for form actions
+		$page = isset( $_GET['page'] ) ? sanitize_key( $_GET['page'] ) : '';
+		$current_url = admin_url( 'options-general.php?page=' . urlencode( $page ) . '&tab=' . urlencode( $active_tab ) );
 
 		?>
         <h2><?php _e( 'Login LockDown Options', 'loginlockdown' ) ?></h2>
@@ -325,7 +373,7 @@ function loginlockdown_admin_page() {
             <a href="?page=<?php echo esc_attr( basename( __FILE__ ) ); ?>&tab=activity" class="nav-tab <?php echo $active_tab === 'activity' ? 'nav-tab-active' : ''; ?>"><?php _e( 'Activity', 'loginlockdown' ) ?> (<?php echo count( $dalist ); ?>)</a>
         </h2>
 		<?php if ( $active_tab === 'settings' ) { ?>
-            <form method="post" action="<?php echo esc_attr( $_SERVER["REQUEST_URI"] ); ?>">
+            <form method="post" action="<?php echo esc_url( $current_url ); ?>">
 				<?php
 				if ( function_exists( 'wp_nonce_field' ) ) {
 					wp_nonce_field( 'login-lockdown_update-options' );
@@ -372,7 +420,7 @@ function loginlockdown_admin_page() {
                     <input type="submit" class="button button-primary" name="update_loginlockdownSettings" value="<?php _e( 'Update Settings', 'loginlockdown' ) ?>"/></div>
             </form>
 		<?php } else { ?>
-            <form method="post" action="<?php echo esc_attr( $_SERVER["REQUEST_URI"] ); ?>">
+            <form method="post" action="<?php echo esc_url( $current_url ); ?>">
 				<?php
 				if ( function_exists( 'wp_nonce_field' ) ) {
 					wp_nonce_field( 'login-lockdown_release-lockdowns' );
@@ -489,52 +537,68 @@ function loginlockdown_wp_authenticate_username_password( $user, $username, $pas
 remove_filter( 'authenticate', 'wp_authenticate_username_password', 20 );
 add_filter( 'authenticate', 'loginlockdown_wp_authenticate_username_password', 20, 3 );
 
-if ( ! function_exists( 'wp_authenticate' ) ) :
-	/**
-	 * Authenticate the user the WordPress way.
-	 *
-	 * @param string $username
-	 * @param string $password
-	 *
-	 * @return WP_User
-	 */
-	function wp_authenticate( $username, $password ) {
-		$loginlockdownOptions = loginlockdown_get_options();
+/**
+ * Check IP lockout before authentication and track failed login attempts.
+ *
+ * Hooks into WordPress authentication to check if the IP is locked out
+ * before allowing login attempts. Tracks failed attempts and triggers
+ * lockouts when threshold is exceeded.
+ */
+add_filter( 'authenticate', 'loginlockdown_check_ip_before_auth', 1, 3 );
 
-		$username = sanitize_user( $username );
-		$password = trim( $password );
-
-		if ( loginlockdown_is_ip_locked() ) {
-			return new WP_Error( 'incorrect_password', __( "<strong>ERROR</strong>: We're sorry, but this IP range has been blocked due to too many recent failed login attempts.<br /><br />Please try again later.", 'loginlockdown' ) );
-		}
-
-		$user = apply_filters( 'authenticate', null, $username, $password );
-
-		if ( $user === null ) {
-			// TODO what should the error message be? (Or would these even happen?)
-			// Only needed if all authentication handlers fail to return anything.
-			$user = new WP_Error( 'authentication_failed', __( '<strong>ERROR</strong>: Invalid username or incorrect password.', 'loginlockdown' ) );
-		}
-
-		$ignore_codes = [ 'empty_username', 'empty_password' ];
-
-		if ( is_wp_error( $user ) && ! in_array( $user->get_error_code(), $ignore_codes ) ) {
-			loginlockdown_increment_fails( $username );
-			if ( $loginlockdownOptions['max_login_retries'] <= loginlockdown_count_fails( $username ) ) {
-				loginlockdown_lock_username( $username );
-
-				return new WP_Error( 'incorrect_password', __( "<strong>ERROR</strong>: We're sorry, but this IP range has been blocked due to too many recent failed login attempts.<br /><br />Please try again later.", 'loginlockdown' ) );
-			}
-			if ( 'yes' === $loginlockdownOptions['mask_login_errors'] ) {
-				return new WP_Error( 'authentication_failed', sprintf( __( '<strong>ERROR</strong>: Invalid username or incorrect password. <a href="%s" title="Password Lost and Found">Lost your password</a>?', 'loginlockdown' ), site_url( 'wp-login.php?action=lostpassword', 'login' ) ) );
-			} else {
-				do_action( 'wp_login_failed', $username );
-			}
-		}
-
+function loginlockdown_check_ip_before_auth( $user, $username, $password ) {
+	// If already an error or successful auth, return it
+	if ( is_wp_error( $user ) || is_a( $user, 'WP_User' ) ) {
 		return $user;
 	}
-endif;
+
+	// Check if IP is currently locked
+	if ( loginlockdown_is_ip_locked() ) {
+		return new WP_Error(
+			'ip_locked',
+			__( "<strong>ERROR</strong>: We're sorry, but this IP range has been blocked due to too many recent failed login attempts.<br /><br />Please try again later.", 'loginlockdown' )
+		);
+	}
+
+	// Allow WordPress to continue authentication
+	return $user;
+}
+
+/**
+ * Track failed login attempts and trigger lockouts.
+ */
+add_action( 'wp_login_failed', 'loginlockdown_track_failed_login' );
+
+function loginlockdown_track_failed_login( $username ) {
+	$loginlockdownOptions = loginlockdown_get_options();
+
+	loginlockdown_increment_fails( $username );
+
+	if ( $loginlockdownOptions['max_login_retries'] <= loginlockdown_count_fails( $username ) ) {
+		loginlockdown_lock_username( $username );
+	}
+}
+
+/**
+ * Optionally mask login error messages for additional security.
+ */
+add_filter( 'login_errors', 'loginlockdown_mask_login_errors' );
+
+function loginlockdown_mask_login_errors( $error ) {
+	$loginlockdownOptions = loginlockdown_get_options();
+
+	if ( 'yes' === $loginlockdownOptions['mask_login_errors'] ) {
+		// Don't mask if it's an IP lockout message
+		if ( strpos( $error, 'IP range has been blocked' ) === false ) {
+			return sprintf(
+				__( '<strong>ERROR</strong>: Invalid username or incorrect password. <a href="%s">Lost your password</a>?', 'loginlockdown' ),
+				site_url( 'wp-login.php?action=lostpassword', 'login' )
+			);
+		}
+	}
+
+	return $error;
+}
 
 /**
  * Multi site network-wide activation
