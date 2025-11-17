@@ -271,14 +271,20 @@ function loginlockdown_admin_page() {
 		//wp_nonce check
 		check_admin_referer( 'login-lockdown_update-options' );
 
+		// Validate and sanitize numeric settings with reasonable limits
 		if ( isset( $_POST['ll_max_login_retries'] ) ) {
-			$loginLockDownOptions['max_login_retries'] = $_POST['ll_max_login_retries'];
+			$value = intval( $_POST['ll_max_login_retries'] );
+			$loginLockDownOptions['max_login_retries'] = max( 1, min( 100, $value ) );
 		}
 		if ( isset( $_POST['ll_retries_within'] ) ) {
-			$loginLockDownOptions['retries_within'] = $_POST['ll_retries_within'];
+			$value = intval( $_POST['ll_retries_within'] );
+			// Maximum 24 hours (1440 minutes)
+			$loginLockDownOptions['retries_within'] = max( 1, min( 1440, $value ) );
 		}
 		if ( isset( $_POST['ll_lockout_length'] ) ) {
-			$loginLockDownOptions['lockout_length'] = $_POST['ll_lockout_length'];
+			$value = intval( $_POST['ll_lockout_length'] );
+			// Maximum 1 week (10080 minutes)
+			$loginLockDownOptions['lockout_length'] = max( 1, min( 10080, $value ) );
 		}
 		if ( isset( $_POST['ll_lockout_invalid_usernames'] ) ) {
 			$loginLockDownOptions['lockout_invalid_usernames'] = $_POST['ll_lockout_invalid_usernames'];
