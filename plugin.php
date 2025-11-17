@@ -263,15 +263,27 @@ function loginlockdown_calculate_subnet( $ip ) {
 /**
  * Get the IPV6 format.
  *
- * @param $ip
+ * @param string $ip IPv6 address to expand
  *
- * @return false|string
+ * @return false|string Expanded IPv6 address or false on error
  */
 function loginlockdown_expand_ipv6( $ip ) {
-	$hex = unpack( "H*hex", inet_pton( $ip ) );
-	$ip  = substr( preg_replace( "/([A-f0-9]{4})/", "$1:", $hex['hex'] ), 0, - 1 );
+	// Suppress errors and check if inet_pton succeeds
+	$binary = @inet_pton( $ip );
 
-	return $ip;
+	if ( $binary === false ) {
+		return false;  // Invalid IPv6 address
+	}
+
+	$hex = unpack( "H*hex", $binary );
+
+	if ( ! isset( $hex['hex'] ) ) {
+		return false;
+	}
+
+	$expanded = substr( preg_replace( "/([A-f0-9]{4})/", "$1:", $hex['hex'] ), 0, -1 );
+
+	return $expanded;
 }
 
 /**
