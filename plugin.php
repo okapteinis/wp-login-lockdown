@@ -237,12 +237,23 @@ function loginlockdown_get_options() {
  */
 function loginlockdown_calculate_subnet( $ip ) {
 	$subnet[0] = $ip;
+	$subnet[1] = $ip; // Default fallback
+
 	if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) !== false ) {
-		$ip = loginlockdown_expand_ipv6( $ip );
-		preg_match( "/^([0-9abcdef]{1,4}:){4}/", $ip, $matches );
-		$subnet[0] = $ip;
-		$subnet[1] = $matches[0];
-	} else {
+		$expanded = loginlockdown_expand_ipv6( $ip );
+		if ( $expanded !== false ) {
+			$subnet[0] = $expanded;
+
+			// Match first 4 groups of IPv6 address (64-bit subnet)
+			if ( preg_match( "/^([0-9abcdef]{1,4}:){4}/", $expanded, $matches ) ) {
+				$subnet[1] = $matches[0];
+			} else {
+				// Fallback: use full IP if pattern doesn't match
+				$subnet[1] = $expanded;
+			}
+		}
+	} else if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) !== false ) {
+		// IPv4: use first 3 octets as subnet
 		$subnet[1] = substr( $ip, 0, strrpos( $ip, "." ) + 1 );
 	}
 
