@@ -98,8 +98,9 @@ function loginlockdown_count_fails( $username = "" ) {
 	$subnet     = loginlockdown_calculate_subnet( loginlockdown_get_remote_ip() );
 
 	$retries_within = intval( $loginlockdownOptions['retries_within'] );
+	$table_name_safe = esc_sql( $table_name );
 	$numFailsquery = $wpdb->prepare(
-		"SELECT COUNT(login_attempt_ID) FROM $table_name " .
+		"SELECT COUNT(login_attempt_ID) FROM `$table_name_safe` " .
 		"WHERE login_attempt_date + INTERVAL %d MINUTE > now() AND " .
 		"login_attempt_IP LIKE %s",
 		$retries_within,
@@ -172,10 +173,13 @@ function loginlockdown_is_ip_locked() {
 	$table_name = $wpdb->prefix . "lockdowns";
 	$subnet     = loginlockdown_calculate_subnet( loginlockdown_get_remote_ip() );
 
-	$stillLockedquery = "SELECT user_id FROM $table_name " .
-	                    "WHERE release_date > now() AND " .
-	                    "lockdown_IP LIKE %s";
-	$stillLockedquery = $wpdb->prepare( $stillLockedquery, $subnet[1] . "%" );
+	$table_name_safe = esc_sql( $table_name );
+	$stillLockedquery = $wpdb->prepare(
+		"SELECT user_id FROM `$table_name_safe` " .
+		"WHERE release_date > now() AND " .
+		"lockdown_IP LIKE %s",
+		$subnet[1] . "%"
+	);
 
 	$stillLocked = $wpdb->get_var( $stillLockedquery );
 
@@ -189,10 +193,11 @@ function loginlockdown_is_ip_locked() {
 function loginlockdown_list_locked_ips() {
 	global $wpdb;
 	$table_name = $wpdb->prefix . "lockdowns";
+	$table_name_safe = esc_sql( $table_name );
 
 	$listLocked = $wpdb->get_results(
 		"SELECT lockdown_ID, floor((UNIX_TIMESTAMP(release_date)-UNIX_TIMESTAMP(now()))/60) AS minutes_left, " .
-		"lockdown_IP FROM $table_name WHERE release_date > now()",
+		"lockdown_IP FROM `$table_name_safe` WHERE release_date > now()",
 		ARRAY_A
 	);
 
@@ -307,9 +312,10 @@ function loginlockdown_admin_page() {
 
 		if ( isset( $_POST['releaseme'] ) ) {
 			$released = $_POST['releaseme'];
+			$table_name_safe = esc_sql( $table_name );
 			foreach ( $released as $release_id ) {
 				$releasequery = $wpdb->prepare(
-					"UPDATE $table_name SET release_date = now() WHERE lockdown_ID = %d",
+					"UPDATE `$table_name_safe` SET release_date = now() WHERE lockdown_ID = %d",
 					intval( $release_id )
 				);
 				$results = $wpdb->query( $releasequery );
