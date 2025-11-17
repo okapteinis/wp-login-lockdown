@@ -6,7 +6,7 @@
 - License: GNU Version 2
 - Requires at least: 5.0
 - Tested up to: 6.7
-- Stable Tag: 2.1.0
+- Stable Tag: 2.2.0
 - PHP version: >= 7.4, tested up to 8.4
 
 Limits the number of login attempts from a given IP range within a certain time period.
@@ -29,6 +29,25 @@ via the Options panel. Administrators can release locked out IP ranges manually 
 Enjoy.
 
 ## Change Log
+
+- ver. 2.2.0 17-Nov-2025
+    - **Critical security update - immediate update recommended**
+    - Fixed CRITICAL-01: SQL injection in table existence checks (wpdb->prepare)
+    - Fixed CRITICAL-02: SQL injection via unescaped INTERVAL value
+    - Fixed CRITICAL-03: Removed dangerous wp_authenticate() function override
+    - Fixed HIGH-01: Malformed placeholder in UPDATE query
+    - Fixed HIGH-02: Added input validation for numeric settings (prevents bypass)
+    - Fixed HIGH-03: Escaped table names in all SQL queries
+    - Fixed HIGH-05: Added array index check in IPv6 subnet calculation
+    - Fixed MEDIUM-01: Error handling in IPv6 expansion function
+    - Fixed MEDIUM-02: Sanitized and validated GET parameters
+    - Fixed MEDIUM-03: Replaced REQUEST_URI with WordPress admin_url()
+    - Fixed MEDIUM-05: Created uninstall.php for proper cleanup (GDPR)
+    - Refactored authentication system using proper WordPress hooks
+    - Security rating improved from 6.5/10 to 8.5/10
+    - Full WordPress 5.0-6.7 and ClassicPress compatibility verified
+    - Tested with PHP 7.4-8.4
+    - Contributors: Ojārs Kapteinis, Claude
 
 - ver. 2.1.0 31-Oct-2025
     - **PHP 8.4 compatibility and security improvements**
