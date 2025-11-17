@@ -302,10 +302,11 @@ function loginlockdown_admin_page() {
 		if ( isset( $_POST['releaseme'] ) ) {
 			$released = $_POST['releaseme'];
 			foreach ( $released as $release_id ) {
-				$releasequery = "UPDATE $table_name SET release_date = now() " .
-				                "WHERE lockdown_ID = '%d'";
-				$releasequery = $wpdb->prepare( $releasequery, $release_id );
-				$results      = $wpdb->query( $releasequery );
+				$releasequery = $wpdb->prepare(
+					"UPDATE $table_name SET release_date = now() WHERE lockdown_ID = %d",
+					intval( $release_id )
+				);
+				$results = $wpdb->query( $releasequery );
 			}
 		}
 		update_option( "loginlockdown_admin_options", $loginLockDownOptions );
