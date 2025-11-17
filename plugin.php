@@ -35,7 +35,7 @@ function loginlockdown_install() {
 
 	$table_name = $wpdb->prefix . "login_fails";
 
-	if ( $wpdb->get_var( "SHOW TABLES LIKE '$table_name'" ) !== $table_name ) {
+	if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table_name ) ) !== $table_name ) {
 		$sql = "CREATE TABLE " . $table_name . " (
 			`login_attempt_ID` bigint(20) NOT NULL AUTO_INCREMENT,
 			`user_id` bigint(20) NOT NULL,
@@ -50,7 +50,7 @@ function loginlockdown_install() {
 
 	$table_name = $wpdb->prefix . "lockdowns";
 
-	if ( $wpdb->get_var( "SHOW TABLES LIKE '$table_name'" ) !== $table_name ) {
+	if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table_name ) ) !== $table_name ) {
 		$sql = "CREATE TABLE " . $table_name . " (
 			`lockdown_ID` bigint(20) NOT NULL AUTO_INCREMENT,
 			`user_id` bigint(20) NOT NULL,
