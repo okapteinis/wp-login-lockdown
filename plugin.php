@@ -2,7 +2,7 @@
 /*
 Plugin Name: Login LockDown
 Plugin URI: https://github.com/okapteinis/wp-login-lockdown
-Version: v2.1.0
+Version: 2.2.0
 Author: Michael VanDeMar
 Contributors: timotheemoulin, okapteinis
 License: GPLv2
