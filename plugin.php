@@ -354,7 +354,12 @@ function loginlockdown_admin_page() {
     <div class="wrap">
 		<?php
 
-		$active_tab = isset( $_GET['tab'] ) ? $_GET['tab'] : 'settings';
+		// Sanitize and validate tab parameter
+		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'settings';
+		$allowed_tabs = array( 'settings', 'activity' );
+		if ( ! in_array( $active_tab, $allowed_tabs, true ) ) {
+			$active_tab = 'settings';
+		}
 
 		?>
         <h2><?php _e( 'Login LockDown Options', 'loginlockdown' ) ?></h2>
