@@ -46,12 +46,9 @@ function loginlockdown_uninstall_single_site() {
 	$table_login_fails = $wpdb->prefix . 'login_fails';
 	$table_lockdowns = $wpdb->prefix . 'lockdowns';
 
-	// Use safe table name escaping
-	$table_login_fails_safe = esc_sql( $table_login_fails );
-	$table_lockdowns_safe = esc_sql( $table_lockdowns );
-
-	$wpdb->query( "DROP TABLE IF EXISTS `$table_login_fails_safe`" );
-	$wpdb->query( "DROP TABLE IF EXISTS `$table_lockdowns_safe`" );
+	// Table names from $wpdb->prefix are inherently safe, use backticks for identifiers
+	$wpdb->query( "DROP TABLE IF EXISTS `$table_login_fails`" );
+	$wpdb->query( "DROP TABLE IF EXISTS `$table_lockdowns`" );
 
 	// Delete all plugin options
 	delete_option( 'loginlockdown_admin_options' );
